@@ -97,7 +97,8 @@ import com.android.inputmethod.latin.utils.LeakGuardHandlerWrapper;
 import com.android.inputmethod.latin.utils.StatsUtils;
 import com.android.inputmethod.latin.utils.SubtypeLocaleUtils;
 import com.android.inputmethod.latin.utils.ViewLayoutUtils;
-
+import android.view.KeyEvent;
+import com.android.inputmethod.keyboard.Key;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -1332,6 +1333,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     @Override
     public void onCodeInput(final int codePoint, final int x, final int y,
             final boolean isKeyRepeat) {
+        if (DEBUG)
+             Log.d(TAG, "Trace_key, onCodeInput codePoint:" + codePoint + " isKeyRepeat:" + isKeyRepeat);
         final MainKeyboardView mainKeyboardView = mKeyboardSwitcher.getMainKeyboardView();
         // x and y include some padding, but everything down the line (especially native
         // code) needs the coordinates in the keyboard frame.
@@ -1676,7 +1679,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     // Hooks for hardware keyboard
     @Override
     public boolean onKeyDown(final int keyCode, final KeyEvent keyEvent) {
+        if (DEBUG)
+             Log.d(TAG, "Trace_key, onKeyDown keyCode is:" + keyCode);
         mSpecialKeyDetector.onKeyDown(keyEvent);
+        if (processKey(keyEvent, 0 != keyEvent.getRepeatCount()))
+            return true;
+
         if (!ProductionFlags.IS_HARDWARE_KEYBOARD_SUPPORTED) {
             return super.onKeyDown(keyCode, keyEvent);
         }
@@ -1695,8 +1703,38 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         return super.onKeyDown(keyCode, keyEvent);
     }
 
+    private boolean processKey(KeyEvent event, boolean realAction) {
+        final View visibleKeyboardView = mKeyboardSwitcher.getVisibleKeyboardView();
+        if (visibleKeyboardView == null || !hasSuggestionStripView()) {
+            return false;
+        }
+        if (!visibleKeyboardView.isShown())
+            return false;
+        int keyCode = event.getKeyCode();
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, keycode: " + keyCode + ", realAction: "+ realAction);
+        return mKeyboardSwitcher.processFunctionKey(keyCode);
+    }
+
+    public void doInputSoftKey(Key k) {
+        int codeToSend = k.getCode();
+        if (Constants.CODE_SHORTCUT == codeToSend) {
+           mSubtypeSwitcher.switchToShortcutIME(this);
+        }
+
+        final Event event = createSoftwareKeypressEvent(codeToSend, k.getX(), k.getY(), false);
+        final InputTransaction completeInputTransaction =
+        mInputLogic.onCodeInput(mSettings.getCurrent(), event,
+                    mKeyboardSwitcher.getKeyboardShiftMode(),
+                    mKeyboardSwitcher.getCurrentKeyboardScriptId(), mHandler);
+        updateStateAfterInputTransaction(completeInputTransaction);
+        mKeyboardSwitcher.onCodeInput(codeToSend, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
+    }
+
     @Override
     public boolean onKeyUp(final int keyCode, final KeyEvent keyEvent) {
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, onKeyUp keyCode is:" + keyCode);
         mSpecialKeyDetector.onKeyUp(keyEvent);
         if (!ProductionFlags.IS_HARDWARE_KEYBOARD_SUPPORTED) {
             return super.onKeyUp(keyCode, keyEvent);

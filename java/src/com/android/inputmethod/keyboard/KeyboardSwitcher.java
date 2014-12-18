@@ -41,9 +41,13 @@ import com.android.inputmethod.latin.settings.Settings;
 import com.android.inputmethod.latin.settings.SettingsValues;
 import com.android.inputmethod.latin.utils.ResourceUtils;
 import com.android.inputmethod.latin.utils.ScriptUtils;
+import android.view.KeyEvent;
+import com.android.inputmethod.keyboard.Key;
+import com.android.inputmethod.latin.Constants;
 
 public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private static final String TAG = KeyboardSwitcher.class.getSimpleName();
+    private static final boolean DEBUG = false;
 
     private SubtypeSwitcher mSubtypeSwitcher;
     private SharedPreferences mPrefs;
@@ -241,6 +245,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
                 settingsValues.mHasHardwareKeyboard ? View.GONE : View.VISIBLE);
         mEmojiPalettesView.setVisibility(View.GONE);
         mEmojiPalettesView.stopEmojiPalettes();
+        mEmojiPalettesView.clearFocus();
     }
 
     // Implements {@link KeyboardState.SwitchActions}.
@@ -248,6 +253,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     public void setEmojiKeyboard() {
         final Keyboard keyboard = mKeyboardLayoutSet.getKeyboard(KeyboardId.ELEMENT_ALPHABET);
         mMainKeyboardFrame.setVisibility(View.GONE);
+        mMainKeyboardFrame.clearFocus();
         mEmojiPalettesView.startEmojiPalettes(
                 mKeyboardTextsSet.getText(KeyboardTextsSet.SWITCH_TO_ALPHA_KEY_LABEL),
                 mKeyboardView.getKeyVisualAttribute(), keyboard.mIconsSet);
@@ -307,6 +313,57 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     public void onCodeInput(final int code, final int currentAutoCapsState,
             final int currentRecapitalizeState) {
         mState.onCodeInput(code, currentAutoCapsState, currentRecapitalizeState);
+    }
+
+    public boolean processFunctionKey(int keyCode) {
+            boolean ret = false;
+        if (isShowingEmojiPalettes()) {
+            Key key = mEmojiPalettesView.processFunctionKey(keyCode);
+            if (key != null) {
+                responseForEmojboard(key);
+            }
+            return true;
+        } else {
+            final MainKeyboardView mainKeyboardView = getMainKeyboardView();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+                Key key = mainKeyboardView.processFunctionKey(keyCode);
+                if (key != null) {
+                    responseForMainboard(key);
+                    return true;
+                }
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+                keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
+                keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+                keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    mainKeyboardView.processFunctionKey(keyCode);
+                    return true;
+            }
+        }
+        return ret;
+    }
+
+
+    private void responseForMainboard(Key k) {
+        final MainKeyboardView mainKeyboardView = getMainKeyboardView();
+        int keyCode= k.getCode();
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, response k.getCode:" + keyCode);
+        if (Constants.CODE_SHIFT == keyCode || //-1
+            Constants.CODE_SWITCH_ALPHA_SYMBOL == keyCode) {
+            this.onPressKey(keyCode, true, 0, -1);
+            this.onReleaseKey(keyCode, false, 0, -1);
+            return;
+        } else if (Constants.CODE_EMOJI == keyCode) {
+            return;
+        }
+        mLatinIME.doInputSoftKey(k);
+    }
+
+
+    private void responseForEmojboard(Key k) {
+
+
     }
 
     public boolean isShowingEmojiPalettes() {

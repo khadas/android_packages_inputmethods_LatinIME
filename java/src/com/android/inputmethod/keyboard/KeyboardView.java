@@ -32,6 +32,7 @@ import android.graphics.drawable.NinePatchDrawable;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
+import android.util.Log;
 
 import com.android.inputmethod.keyboard.internal.KeyDrawParams;
 import com.android.inputmethod.keyboard.internal.KeyVisualAttributes;
@@ -80,6 +81,8 @@ public class KeyboardView extends View {
     private final KeyVisualAttributes mKeyVisualAttributes;
     // Default keyLabelFlags from {@link KeyboardTheme}.
     // Currently only "alignHintLabelToBottom" is supported.
+    private final static String TAG = "KeyboardView";
+    private final static boolean DEBUG = false;
     private final int mDefaultKeyLabelFlags;
     private final float mKeyHintLetterPadding;
     private final String mKeyPopupHintLetter;
@@ -266,7 +269,8 @@ public class KeyboardView extends View {
 
     private void onDrawKeyboard(final Canvas canvas) {
         if (mKeyboard == null) return;
-
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, now onDrawkeyboard!!!!");
         final int width = getWidth();
         final int height = getHeight();
         final Paint paint = mPaint;
@@ -332,6 +336,7 @@ public class KeyboardView extends View {
                     mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground);
             onDrawKeyBackground(key, canvas, background);
         }
+
         onDrawKeyTopVisuals(key, canvas, paint, params);
 
         canvas.translate(-keyDrawX, -keyDrawY);
@@ -340,6 +345,8 @@ public class KeyboardView extends View {
     // Draw key background.
     protected void onDrawKeyBackground(final Key key, final Canvas canvas,
             final Drawable background) {
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, now onDrawKeyBackground, keyLabel:" + key.getLabel());
         final int keyWidth = key.getDrawWidth();
         final int keyHeight = key.getHeight();
         final int bgWidth, bgHeight, bgX, bgY;

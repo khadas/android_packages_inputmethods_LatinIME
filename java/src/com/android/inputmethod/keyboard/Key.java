@@ -187,6 +187,7 @@ public class Key implements Comparable<Key> {
 
     /** The current pressed state of this key */
     private boolean mPressed;
+    private boolean mFocus;
     /** Key is enabled and responds on press */
     private boolean mEnabled = true;
 
@@ -401,6 +402,7 @@ public class Key implements Comparable<Key> {
         // Key state.
         mPressed = key.mPressed;
         mEnabled = key.mEnabled;
+        mFocus = key.mFocus;
     }
 
     private static boolean needsToUpperCase(final int labelFlags, final int keyboardElementId) {
@@ -817,6 +819,14 @@ public class Key implements Comparable<Key> {
         mPressed = false;
     }
 
+    public void onFocus() {
+        mFocus = true;
+    }
+
+    public void onUnFocus() {
+        mFocus = false;
+    }
+
     public final boolean isEnabled() {
         return mEnabled;
     }
@@ -907,6 +917,21 @@ public class Key implements Comparable<Key> {
             background = keyBackground;
         }
         final int[] state = KeyBackgroundState.STATES[mBackgroundType].getState(mPressed);
+        background.setState(state);
+        return background;
+    }
+
+    public final Drawable selectFocusDrawable(final Drawable keyBackground,
+           final Drawable functionalKeyBackground, final Drawable spacebarBackground) {
+        final Drawable background;
+        if (mBackgroundType == BACKGROUND_TYPE_FUNCTIONAL) {
+            background = functionalKeyBackground;
+        } else if (mBackgroundType == BACKGROUND_TYPE_SPACEBAR) {
+            background = spacebarBackground;
+        } else {
+            background = keyBackground;
+        }
+        final int[] state = KeyBackgroundState.STATES[mBackgroundType].getState(mFocus);
         background.setState(state);
         return background;
     }

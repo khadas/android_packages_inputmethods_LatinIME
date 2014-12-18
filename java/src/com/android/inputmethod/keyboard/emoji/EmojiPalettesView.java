@@ -28,6 +28,7 @@ import android.support.v4.view.ViewPager;
 import android.util.AttributeSet;
 import android.util.Pair;
 import android.util.TypedValue;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -51,7 +52,9 @@ import com.android.inputmethod.latin.Constants;
 import com.android.inputmethod.latin.R;
 import com.android.inputmethod.latin.SubtypeSwitcher;
 import com.android.inputmethod.latin.utils.ResourceUtils;
-
+import android.view.KeyEvent;
+import com.android.inputmethod.keyboard.Key;
+import android.view.FocusFinder;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -68,6 +71,8 @@ import java.util.concurrent.TimeUnit;
 public final class EmojiPalettesView extends LinearLayout implements OnTabChangeListener,
         ViewPager.OnPageChangeListener, View.OnClickListener, View.OnTouchListener,
         EmojiPageKeyboardView.OnKeyEventListener {
+    private final static String TAG = "EmojiPalettesView";
+    private final static boolean DEBUG = false;
     private final int mFunctionalKeyBackgroundId;
     private final int mSpacebarBackgroundId;
     private final boolean mCategoryIndicatorEnabled;
@@ -78,6 +83,7 @@ public final class EmojiPalettesView extends LinearLayout implements OnTabChange
     private final DeleteKeyOnTouchListener mDeleteKeyOnTouchListener;
     private EmojiPalettesAdapter mEmojiPalettesAdapter;
     private final EmojiLayoutParams mEmojiLayoutParams;
+    private Key lastFocusKey = null;
 
     private ImageButton mDeleteKey;
     private TextView mAlphabetKeyLeft;
@@ -355,6 +361,70 @@ public final class EmojiPalettesView extends LinearLayout implements OnTabChange
                     false /* isKeyRepeat */);
         }
         mKeyboardActionListener.onReleaseKey(code, false /* withSliding */);
+    }
+
+    public Key processFunctionKey(int keyCode) {
+        Key ret = null;
+        if (lastFocusKey == null) {
+            goFirstKey();
+            return lastFocusKey;
+        }
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+                    break;
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                    goKeyDown(lastFocusKey);
+                    break;
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    goKeyRight(lastFocusKey);
+                    break;
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                    goKeyLeft(lastFocusKey);
+                    break;
+            case KeyEvent.KEYCODE_DPAD_UP:
+                    goKeyUp(lastFocusKey);
+                    break;
+            default:
+                    break;
+        }
+        return lastFocusKey;
+    }
+
+    private int getTabCount() {
+        return mEmojiCategory.getShownCategories().size();
+    }
+
+    private Key goFirstKey() {
+        Key ret = null;
+        return ret;
+    }
+
+    private Key goKeyDown(Key k) {
+        Key ret = null;
+        return ret;
+    }
+
+    private Key goKeyUp(Key k) {
+        Key ret = null;
+        return ret;
+    }
+
+    private Key goKeyLeft(Key k) {
+        Key ret = null;
+        return ret;
+    }
+
+    private Key goKeyRight(Key k) {
+        Key ret = null;
+        final TabWidget tabWidget = mTabHost.getTabWidget();
+        if (DEBUG) {
+            if (FocusFinder.getInstance().findNextFocus(tabWidget, tabWidget.findFocus(), View.FOCUS_LEFT) == null) {
+                    Log.d(TAG, "Trace_key, findNextFocus null");
+            } else {
+                    Log.d(TAG, "Trace_key, findNextFocus not null");
+            }
+        }
+        return ret;
     }
 
     public void setHardwareAcceleratedDrawingEnabled(final boolean enabled) {
