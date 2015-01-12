@@ -353,6 +353,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             Constants.CODE_SWITCH_ALPHA_SYMBOL == keyCode) {
             this.onPressKey(keyCode, true, 0, -1);
             this.onReleaseKey(keyCode, false, 0, -1);
+            mainKeyboardView.goFirstKey();
             return;
         } else if (Constants.CODE_OUTPUT_TEXT == keyCode) {
             mLatinIME.onTextInput(k.getLabel());
@@ -361,6 +362,8 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             return;
         }
         mLatinIME.doInputSoftKey(k);
+        if (!mainKeyboardView.checkLastKey())
+            mainKeyboardView.goFirstKey();
     }
 
 

@@ -112,6 +112,7 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
         MoreKeysPanel.Controller, DrawingHandler.Callbacks, TimerHandler.Callbacks {
     private static final String TAG = MainKeyboardView.class.getSimpleName();
     private final static boolean DEBUG = false;
+    private boolean controlByKey = false;
     /** Listener for {@link KeyboardActionListener}. */
     private KeyboardActionListener mKeyboardActionListener;
 
@@ -711,6 +712,7 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
 
     @Override
     public boolean onTouchEvent(final MotionEvent me) {
+        setControlByKey(false);
         if (getKeyboard() == null) {
             return false;
         }
@@ -741,7 +743,7 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
     }
 
     public Key processFunctionKey(int keyCode) {
-        if (lastFocusKey == null) {
+        if (lastFocusKey == null || !isControlByKey()) {
              goFirstKey();
              return lastFocusKey;
         }
@@ -766,6 +768,20 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
         return lastFocusKey;
     }
 
+    public boolean checkLastKey() {
+        final Keyboard kb = getKeyboard();
+        List<Key> sortedKeys = kb.getSortedKeys();
+        int sz = sortedKeys.size();
+        if (lastFocusIndex >= sz)
+            return false;
+        if (lastFocusIndex < 0)
+            return false;
+        Key k = sortedKeys.get(lastFocusIndex);
+        if (k != lastFocusKey && k != null)
+            return false;
+        return true;
+    }
+
     private boolean checkFacing(Key src, Key dst) {
         int mid = src.getX() + src.getWidth() / 2;
         int leftX = src.getX();
@@ -776,7 +792,7 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
         return false;
     }
 
-    private Key goFirstKey() {
+    public Key goFirstKey() {
         if (DEBUG)
             Log.d(TAG, "Trace_key, now enter goFirstKey()");
         final Keyboard kb = getKeyboard();
@@ -791,13 +807,14 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
 
     private void changeFocusState(Key lastKey, Key curKey) {
         if (lastFocusKey != null) {
-            lastKey.onReleased();
+            lastKey.onUnFocus();
             invalidateKey(lastKey);
         }
         if (curKey != null) {
-            curKey.onPressed();
+            curKey.onFocus();
             invalidateKey(curKey);
             lastFocusKey = curKey;
+            setControlByKey(true);
         }
     }
 
@@ -859,43 +876,51 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
                     break;
                 }
             }
-       }
-       if (ret != null && DEBUG) {
+        }
+        if (ret != null && DEBUG) {
            Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
-       }
-       return ret;
+        }
+        return ret;
     }
 
     private Key goKeyLeft(Key k) {
-       final Keyboard kb = getKeyboard();
-       Key ret = null;
-       List<Key> sortedKeys = kb.getSortedKeys();
-       int sz = sortedKeys.size();
-       if (lastFocusIndex > 0 && lastFocusIndex < sz) {
-               lastFocusIndex--;
-               ret = sortedKeys.get(lastFocusIndex);
-               changeFocusState(lastFocusKey, ret);
-       }
-       if (ret != null && DEBUG) {
-               Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
-       }
-       return ret;
+        final Keyboard kb = getKeyboard();
+        Key ret = null;
+        List<Key> sortedKeys = kb.getSortedKeys();
+        int sz = sortedKeys.size();
+        if (lastFocusIndex > 0 && lastFocusIndex < sz) {
+            lastFocusIndex--;
+            ret = sortedKeys.get(lastFocusIndex);
+            changeFocusState(lastFocusKey, ret);
+        }
+        if (ret != null && DEBUG) {
+            Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
+        }
+        return ret;
     }
 
     private Key goKeyRight(Key k) {
-       final Keyboard kb = getKeyboard();
-       Key ret = null;
-       List<Key> sortedKeys = kb.getSortedKeys();
-       int sz = sortedKeys.size();
-       if (lastFocusIndex >= 0 &&  lastFocusIndex < sz -1) {
-               lastFocusIndex++;
-               ret = sortedKeys.get(lastFocusIndex);
-               changeFocusState(lastFocusKey, ret);
-       }
-       if (ret != null && DEBUG) {
-               Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
-       }
-       return ret;
+        final Keyboard kb = getKeyboard();
+        Key ret = null;
+        List<Key> sortedKeys = kb.getSortedKeys();
+        int sz = sortedKeys.size();
+        if (lastFocusIndex >= 0 &&  lastFocusIndex < sz -1) {
+            lastFocusIndex++;
+            ret = sortedKeys.get(lastFocusIndex);
+            changeFocusState(lastFocusKey, ret);
+        }
+        if (ret != null && DEBUG) {
+            Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
+        }
+        return ret;
+    }
+
+    protected boolean isControlByKey() {
+        return controlByKey;
+    }
+
+    protected void setControlByKey(boolean b) {
+        controlByKey = b;
     }
 
     public void cancelAllOngoingEvents() {
