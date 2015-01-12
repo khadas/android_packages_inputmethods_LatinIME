@@ -354,6 +354,9 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
             this.onPressKey(keyCode, true, 0, -1);
             this.onReleaseKey(keyCode, false, 0, -1);
             return;
+        } else if (Constants.CODE_OUTPUT_TEXT == keyCode) {
+            mLatinIME.onTextInput(k.getLabel());
+            return;
         } else if (Constants.CODE_EMOJI == keyCode) {
             return;
         }
