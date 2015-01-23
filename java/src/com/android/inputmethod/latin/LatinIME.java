@@ -105,6 +105,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import android.graphics.Color;
+
 
 /**
  * Input method implementation for Qwerty'ish keyboard.
@@ -176,6 +178,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     private AlertDialog mOptionsDialog;
 
     private final boolean mIsHardwareAcceleratedDrawingEnabled;
+
+    public static boolean mIsFocusInKeyboard = true;
 
     public final UIHandler mHandler = new UIHandler(this);
 
@@ -1682,8 +1686,18 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         if (DEBUG)
              Log.d(TAG, "Trace_key, onKeyDown keyCode is:" + keyCode);
         mSpecialKeyDetector.onKeyDown(keyEvent);
-        if (processKey(keyEvent, 0 != keyEvent.getRepeatCount()))
+
+        if (mIsFocusInKeyboard) {
+            if (processKey(keyEvent, 0 != keyEvent.getRepeatCount())) {
+                if (MainKeyboardView.KeyEventProcessedFlag == false)
+                    mSuggestionStripView.getWordViews().get(mSuggestionStripView.mFocusIndex).setTextColor(Color.rgb(0,255,255));
+                return true;
+            }
+        }
+        else {
+            mSuggestionStripView.processFunctionKey(keyCode);
             return true;
+        }
 
         if (!ProductionFlags.IS_HARDWARE_KEYBOARD_SUPPORTED) {
             return super.onKeyDown(keyCode, keyEvent);
@@ -1925,5 +1939,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             return fallbackValue;
         }
         return mRichImm.shouldOfferSwitchingToNextInputMethod(token, fallbackValue);
+    }
+
+    public static void ChangeFocusState() {
+        mIsFocusInKeyboard = !mIsFocusInKeyboard;
     }
 }

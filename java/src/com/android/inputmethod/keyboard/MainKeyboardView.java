@@ -64,6 +64,8 @@ import java.util.List;
 import com.android.inputmethod.latin.utils.TypefaceUtils;
 
 import java.util.WeakHashMap;
+import com.android.inputmethod.latin.LatinIME;
+
 
 /**
  * A view that is responsible for detecting key presses and touch movements.
@@ -174,6 +176,8 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
     private final DrawingHandler mDrawingHandler = new DrawingHandler(this);
 
     private MainKeyboardAccessibilityDelegate mAccessibilityDelegate;
+
+    public static boolean KeyEventProcessedFlag = false;
 
     public MainKeyboardView(final Context context, final AttributeSet attrs) {
         this(context, attrs, R.attr.mainKeyboardViewStyle);
@@ -822,6 +826,7 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
         final Keyboard kb = getKeyboard();
         Key ret = null;
         int minDist = 0;
+        KeyEventProcessedFlag = true;
         List<Key> sortedKeys = kb.getSortedKeys();
         int sz = sortedKeys.size();
         if (lastFocusIndex >= sz) {
@@ -854,6 +859,10 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
     private Key goKeyUp(Key k) {
         final Keyboard kb = getKeyboard();
         Key ret = null;
+        KeyEventProcessedFlag = false;
+        LatinIME.mIsFocusInKeyboard = false;
+        k.onReleased();
+        this.invalidateKey(k);
         List<Key> sortedKeys = kb.getSortedKeys();
         int sz = sortedKeys.size();
         if (lastFocusIndex <= 0) {
@@ -867,12 +876,16 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
                     ret =  tmp;
                     lastFocusIndex = i;
                     changeFocusState(lastFocusKey, ret);
+                    KeyEventProcessedFlag = true;
+                    LatinIME.mIsFocusInKeyboard = true;
                     break;
                 }
                 if ((tmp.getX() + tmp.getWidth() / 2) <= (k.getX() + k.getWidth() /2)) {
                     ret = tmp;
                     lastFocusIndex = i;
                     changeFocusState(lastFocusKey, ret);
+                    KeyEventProcessedFlag = true;
+                    LatinIME.mIsFocusInKeyboard = true;
                     break;
                 }
             }
@@ -886,12 +899,18 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
     private Key goKeyLeft(Key k) {
         final Keyboard kb = getKeyboard();
         Key ret = null;
+        KeyEventProcessedFlag = false;
+        LatinIME.mIsFocusInKeyboard = false;
+        k.onReleased();
+        this.invalidateKey(k);
         List<Key> sortedKeys = kb.getSortedKeys();
         int sz = sortedKeys.size();
         if (lastFocusIndex > 0 && lastFocusIndex < sz) {
             lastFocusIndex--;
             ret = sortedKeys.get(lastFocusIndex);
             changeFocusState(lastFocusKey, ret);
+            KeyEventProcessedFlag = true;
+            LatinIME.mIsFocusInKeyboard = true;
         }
         if (ret != null && DEBUG) {
             Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
@@ -903,6 +922,7 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
         final Keyboard kb = getKeyboard();
         Key ret = null;
         List<Key> sortedKeys = kb.getSortedKeys();
+        KeyEventProcessedFlag = true;
         int sz = sortedKeys.size();
         if (lastFocusIndex >= 0 &&  lastFocusIndex < sz -1) {
             lastFocusIndex++;
@@ -1106,5 +1126,9 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
     public void deallocateMemory() {
         super.deallocateMemory();
         mDrawingPreviewPlacerView.deallocateMemory();
+    }
+
+    public Key getLastFocusKey(){
+        return lastFocusKey;
     }
 }

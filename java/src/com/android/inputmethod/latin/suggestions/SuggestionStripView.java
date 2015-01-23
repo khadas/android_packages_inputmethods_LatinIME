@@ -54,6 +54,9 @@ import com.android.inputmethod.latin.suggestions.MoreSuggestionsView.MoreSuggest
 import com.android.inputmethod.latin.utils.ImportantNoticeUtils;
 
 import java.util.ArrayList;
+import com.android.inputmethod.latin.LatinIME;
+import android.view.KeyEvent;
+
 
 public final class SuggestionStripView extends RelativeLayout implements OnClickListener,
         OnLongClickListener {
@@ -80,6 +83,8 @@ public final class SuggestionStripView extends RelativeLayout implements OnClick
     private final ArrayList<TextView> mWordViews = new ArrayList<>();
     private final ArrayList<TextView> mDebugInfoViews = new ArrayList<>();
     private final ArrayList<View> mDividerViews = new ArrayList<>();
+
+    public int mFocusIndex = 0;
 
     Listener mListener;
     private SuggestedWords mSuggestedWords = SuggestedWords.EMPTY;
@@ -519,5 +524,37 @@ public final class SuggestionStripView extends RelativeLayout implements OnClick
         if (oldw <= 0 && w > 0) {
             maybeShowImportantNoticeTitle();
         }
+    }
+
+    public void processFunctionKey(int keyCode) {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT) {
+            if (mFocusIndex >= 1) {
+                mFocusIndex--;
+                mWordViews.get(mFocusIndex).setTextColor(Color.rgb(0,255,255));
+                mWordViews.get(mFocusIndex+1).setTextColor(Color.rgb(128,138,135));
+            }
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT) {
+            if (mFocusIndex <= 1) {
+                mFocusIndex++;
+                mWordViews.get(mFocusIndex).setTextColor(Color.rgb(0,255,255));
+                mWordViews.get(mFocusIndex-1).setTextColor(Color.rgb(128,138,135));
+            }
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            LatinIME.ChangeFocusState();
+            mWordViews.get(mFocusIndex).setTextColor(Color.rgb(128,138,135));
+            mMainKeyboardView.getLastFocusKey().onPressed();
+            mMainKeyboardView.invalidateKey(mMainKeyboardView.getLastFocusKey());
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+            onClick(mWordViews.get(mFocusIndex));
+            mMainKeyboardView.getLastFocusKey().onPressed();
+            mMainKeyboardView.invalidateKey(mMainKeyboardView.getLastFocusKey());
+        }
+    }
+
+    public ArrayList<TextView> getWordViews() {
+        return mWordViews;
     }
 }
