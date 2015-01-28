@@ -544,12 +544,12 @@ public final class SuggestionStripView extends RelativeLayout implements OnClick
         if (keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
             LatinIME.ChangeFocusState();
             mWordViews.get(mFocusIndex).setTextColor(Color.rgb(128,138,135));
-            mMainKeyboardView.getLastFocusKey().onPressed();
+            mMainKeyboardView.getLastFocusKey().onFocus();
             mMainKeyboardView.invalidateKey(mMainKeyboardView.getLastFocusKey());
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
             onClick(mWordViews.get(mFocusIndex));
-            mMainKeyboardView.getLastFocusKey().onPressed();
+            mMainKeyboardView.getLastFocusKey().onFocus();
             mMainKeyboardView.invalidateKey(mMainKeyboardView.getLastFocusKey());
         }
     }

@@ -861,7 +861,7 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
         Key ret = null;
         KeyEventProcessedFlag = false;
         LatinIME.mIsFocusInKeyboard = false;
-        k.onReleased();
+        k.onUnFocus();
         this.invalidateKey(k);
         List<Key> sortedKeys = kb.getSortedKeys();
         int sz = sortedKeys.size();
@@ -901,7 +901,7 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
         Key ret = null;
         KeyEventProcessedFlag = false;
         LatinIME.mIsFocusInKeyboard = false;
-        k.onReleased();
+        k.onUnFocus();
         this.invalidateKey(k);
         List<Key> sortedKeys = kb.getSortedKeys();
         int sz = sortedKeys.size();
