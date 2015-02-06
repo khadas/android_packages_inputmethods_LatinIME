@@ -548,6 +548,7 @@ public final class SuggestionStripView extends RelativeLayout implements OnClick
             mMainKeyboardView.invalidateKey(mMainKeyboardView.getLastFocusKey());
         }
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+            LatinIME.ChangeFocusState();
             onClick(mWordViews.get(mFocusIndex));
             mMainKeyboardView.getLastFocusKey().onFocus();
             mMainKeyboardView.invalidateKey(mMainKeyboardView.getLastFocusKey());
