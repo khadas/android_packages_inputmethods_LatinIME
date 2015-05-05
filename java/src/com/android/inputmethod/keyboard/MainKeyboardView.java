@@ -890,13 +890,23 @@ public final class MainKeyboardView extends KeyboardView implements PointerTrack
                 }
             }
         }
-        if (ret != null && DEBUG) {
-           Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
+        if (ret != null) {
+            if (DEBUG)
+                Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
+            return ret;
+        } else {
+            k.onFocus();
+            KeyEventProcessedFlag = true;
+            LatinIME.mIsFocusInKeyboard = true;
+            return k;
         }
-        return ret;
     }
 
     private Key goKeyLeft(Key k) {
+        if (lastFocusIndex == 0) {
+            return k;
+        }
+
         final Keyboard kb = getKeyboard();
         Key ret = null;
         KeyEventProcessedFlag = false;
