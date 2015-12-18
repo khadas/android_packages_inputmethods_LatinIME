@@ -114,6 +114,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         PermissionsManager.PermissionsResultCallback {
     static final String TAG = LatinIME.class.getSimpleName();
     private static final boolean TRACE = false;
+    private static final boolean DEBUG = false;
 
     private static final int EXTENDED_TOUCHABLE_REGION_HEIGHT = 100;
     private static final int PERIOD_FOR_AUDIO_AND_HAPTIC_FEEDBACK_IN_KEY_REPEAT = 2;
@@ -1652,9 +1653,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     // Hooks for hardware keyboard
     @Override
     public boolean onKeyDown(final int keyCode, final KeyEvent keyEvent) {
-        if (DEBUG)
+        if (true)
              Log.d(TAG, "Trace_key, onKeyDown keyCode is:" + keyCode);
-        mSpecialKeyDetector.onKeyDown(keyEvent);
+        //mSpecialKeyDetector.onKeyDown(keyEvent);
 
         if (mIsFocusInKeyboard) {
             if (processKey(keyEvent, 0 != keyEvent.getRepeatCount())) {
@@ -1704,23 +1705,16 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     public void doInputSoftKey(Key k) {
         int codeToSend = k.getCode();
         if (Constants.CODE_SHORTCUT == codeToSend) {
-           mSubtypeSwitcher.switchToShortcutIME(this);
+           //mSubtypeSwitcher.switchToShortcutIME(this);
         }
-
-        final Event event = createSoftwareKeypressEvent(codeToSend, k.getX(), k.getY(), false);
-        final InputTransaction completeInputTransaction =
-        mInputLogic.onCodeInput(mSettings.getCurrent(), event,
-                    mKeyboardSwitcher.getKeyboardShiftMode(),
-                    mKeyboardSwitcher.getCurrentKeyboardScriptId(), mHandler);
-        updateStateAfterInputTransaction(completeInputTransaction);
-        mKeyboardSwitcher.onCodeInput(codeToSend, getCurrentAutoCapsState(), getCurrentRecapitalizeState());
+        onCodeInput(codeToSend, k.getX(), k.getY(), false);
     }
 
     @Override
     public boolean onKeyUp(final int keyCode, final KeyEvent keyEvent) {
         if (DEBUG)
             Log.d(TAG, "Trace_key, onKeyUp keyCode is:" + keyCode);
-        mSpecialKeyDetector.onKeyUp(keyEvent);
+        //mSpecialKeyDetector.onKeyUp(keyEvent);
         // TODO: This should be processed in {@link InputLogic}.
         mEmojiAltPhysicalKeyDetector.onKeyUp(keyEvent);
         if (!ProductionFlags.IS_HARDWARE_KEYBOARD_SUPPORTED) {

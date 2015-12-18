@@ -343,6 +343,10 @@ public class KeyboardView extends View {
             if (background != null) {
                 onDrawKeyBackground(key, canvas, background);
             }
+            if (isControlByKey()) {
+                final Drawable focusBackground = key.selectFocusDrawable(mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground);
+                onDrawKeyFocus(key, canvas, focusBackground);
+            }
         }
 
         onDrawKeyTopVisuals(key, canvas, paint, params);
