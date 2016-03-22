@@ -146,8 +146,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     private RichInputMethodManager mRichImm;
     @UsedForTesting final KeyboardSwitcher mKeyboardSwitcher;
     private final SubtypeState mSubtypeState = new SubtypeState();
-    private final EmojiAltPhysicalKeyDetector mEmojiAltPhysicalKeyDetector =
-            new EmojiAltPhysicalKeyDetector(mInputLogic.mConnection);
+    private EmojiAltPhysicalKeyDetector mEmojiAltPhysicalKeyDetector;
     private StatsUtilsManager mStatsUtilsManager;
     // Working variable for {@link #startShowingInputView()} and
     // {@link #onEvaluateInputViewShown()}.
@@ -707,6 +706,12 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         mInputLogic.recycle();
     }
 
+    private boolean isImeSuppressedByHardwareKeyboard() {
+        final KeyboardSwitcher switcher = KeyboardSwitcher.getInstance();
+        return switcher.isImeSuppressedByHardwareKeyboard(
+                mSettings.getCurrent(), switcher.getKeyboardSwitchState());
+    }
+
     @Override
     public void onConfigurationChanged(final Configuration conf) {
         SettingsValues settingsValues = mSettings.getCurrent();
@@ -721,7 +726,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             // have a change in hardware keyboard configuration.
             loadSettings();
             settingsValues = mSettings.getCurrent();
-            if (settingsValues.mHasHardwareKeyboard) {
+            if (isImeSuppressedByHardwareKeyboard()) {
                 // We call cleanupInternalStateForFinishInput() because it's the right thing to do;
                 // however, it seems at the moment the framework is passing us a seemingly valid
                 // but actually non-functional InputConnection object. So if this bug ever gets
@@ -879,7 +884,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         // can go into the correct mode, so we need to do some housekeeping here.
         final boolean needToCallLoadKeyboardLater;
         final Suggest suggest = mInputLogic.mSuggest;
-        if (!currentSettingsValues.mHasHardwareKeyboard) {
+        if (!isImeSuppressedByHardwareKeyboard()) {
             // The app calling setText() has the effect of clearing the composing
             // span, so we should reset our state unconditionally, even if restarting is true.
             // We also tell the input logic about the combining rules for the current subtype, so
@@ -1123,8 +1128,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             return;
         }
         final int inputHeight = mInputView.getHeight();
-        final boolean hasHardwareKeyboard = settingsValues.mHasHardwareKeyboard;
-        if (hasHardwareKeyboard && visibleKeyboardView.getVisibility() == View.GONE) {
+        if (isImeSuppressedByHardwareKeyboard() && !visibleKeyboardView.isShown()) {
             // If there is a hardware keyboard and a visible software keyboard view has been hidden,
             // no visual element will be shown on the screen.
             outInsets.contentTopInsets = inputHeight;
@@ -1170,7 +1174,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     @Override
     public boolean onShowInputRequested(final int flags, final boolean configChange) {
-        if (Settings.getInstance().getCurrent().mHasHardwareKeyboard) {
+        if (isImeSuppressedByHardwareKeyboard()) {
             return true;
         }
         return super.onShowInputRequested(flags, configChange);
@@ -1187,7 +1191,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     @Override
     public boolean onEvaluateFullscreenMode() {
         final SettingsValues settingsValues = mSettings.getCurrent();
-        if (settingsValues.mHasHardwareKeyboard) {
+        if (isImeSuppressedByHardwareKeyboard()) {
             // If there is a hardware keyboard, disable full screen mode.
             return false;
         }
@@ -1670,7 +1674,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         }
 
         // TODO: This should be processed in {@link InputLogic}.
-        mEmojiAltPhysicalKeyDetector.onKeyDown(keyEvent);
+        //mEmojiAltPhysicalKeyDetector.onKeyDown(keyEvent);
+
         if (!ProductionFlags.IS_HARDWARE_KEYBOARD_SUPPORTED) {
             return super.onKeyDown(keyCode, keyEvent);
         }
@@ -1716,6 +1721,11 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
             Log.d(TAG, "Trace_key, onKeyUp keyCode is:" + keyCode);
         //mSpecialKeyDetector.onKeyUp(keyEvent);
         // TODO: This should be processed in {@link InputLogic}.
+        if (mEmojiAltPhysicalKeyDetector == null) {
+            mEmojiAltPhysicalKeyDetector = new EmojiAltPhysicalKeyDetector(
+                    getApplicationContext().getResources());
+        }
+
         mEmojiAltPhysicalKeyDetector.onKeyUp(keyEvent);
         if (!ProductionFlags.IS_HARDWARE_KEYBOARD_SUPPORTED) {
             return super.onKeyUp(keyCode, keyEvent);
