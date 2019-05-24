@@ -100,13 +100,16 @@ import com.android.inputmethod.latin.utils.StatsUtils;
 import com.android.inputmethod.latin.utils.StatsUtilsManager;
 import com.android.inputmethod.latin.utils.SubtypeLocaleUtils;
 import com.android.inputmethod.latin.utils.ViewLayoutUtils;
-
+import android.view.KeyEvent;
+import com.android.inputmethod.keyboard.Key;
 import java.io.FileDescriptor;
 import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
+import android.graphics.Color;
+
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -120,6 +123,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         PermissionsManager.PermissionsResultCallback {
     static final String TAG = LatinIME.class.getSimpleName();
     private static final boolean TRACE = false;
+    private static final boolean DEBUG = true;
 
     private static final int PERIOD_FOR_AUDIO_AND_HAPTIC_FEEDBACK_IN_KEY_REPEAT = 2;
     private static final int PENDING_IMS_CALLBACK_DURATION_MILLIS = 800;
@@ -202,6 +206,7 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
 
     private final boolean mIsHardwareAcceleratedDrawingEnabled;
 
+    public static boolean mIsFocusInKeyboard = true;
     private GestureConsumer mGestureConsumer = GestureConsumer.NULL_GESTURE_CONSUMER;
 
     public final UIHandler mHandler = new UIHandler(this);
@@ -1421,6 +1426,8 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     @Override
     public void onCodeInput(final int codePoint, final int x, final int y,
             final boolean isKeyRepeat) {
+        if (DEBUG)
+             Log.d(TAG, "Trace_key, onCodeInput codePoint:" + codePoint + " isKeyRepeat:" + isKeyRepeat);
         // TODO: this processing does not belong inside LatinIME, the caller should be doing this.
         final MainKeyboardView mainKeyboardView = mKeyboardSwitcher.getMainKeyboardView();
         // x and y include some padding, but everything down the line (especially native
@@ -1751,7 +1758,20 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
     // Hooks for hardware keyboard
     @Override
     public boolean onKeyDown(final int keyCode, final KeyEvent keyEvent) {
-        if (mEmojiAltPhysicalKeyDetector == null) {
+         if (true)
+             Log.d(TAG, "Trace_key, onKeyDown keyCode is:" + keyCode);
+        if (mIsFocusInKeyboard) {
+            if (processKey(keyEvent, 0 != keyEvent.getRepeatCount())) {
+                if (MainKeyboardView.KeyEventProcessedFlag == false)
+                    mSuggestionStripView.getWordViews().get(mSuggestionStripView.mFocusIndex).setTextColor(Color.rgb(0,255,255));
+                return true;
+            }
+        }
+        else {
+            mSuggestionStripView.processFunctionKey(keyCode);
+            return true;
+        }
+		if (mEmojiAltPhysicalKeyDetector == null) {
             mEmojiAltPhysicalKeyDetector = new EmojiAltPhysicalKeyDetector(
                     getApplicationContext().getResources());
         }
@@ -1774,9 +1794,32 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         return super.onKeyDown(keyCode, keyEvent);
     }
 
+    private boolean processKey(KeyEvent event, boolean realAction) {
+        final View visibleKeyboardView = mKeyboardSwitcher.getVisibleKeyboardView();
+        if (visibleKeyboardView == null || !hasSuggestionStripView()) {
+            return false;
+        }
+        if (!visibleKeyboardView.isShown())
+            return false;
+        int keyCode = event.getKeyCode();
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, keycode: " + keyCode + ", realAction: "+ realAction);
+        return mKeyboardSwitcher.processFunctionKey(keyCode);
+    }
+
+    public void doInputSoftKey(Key k) {
+        int codeToSend = k.getCode();
+        if (Constants.CODE_SHORTCUT == codeToSend) {
+           //mSubtypeSwitcher.switchToShortcutIME(this);
+        }
+        onCodeInput(codeToSend, k.getX(), k.getY(), false);
+    }
+
     @Override
     public boolean onKeyUp(final int keyCode, final KeyEvent keyEvent) {
-        if (mEmojiAltPhysicalKeyDetector == null) {
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, onKeyUp keyCode is:" + keyCode);
+		if (mEmojiAltPhysicalKeyDetector == null) {
             mEmojiAltPhysicalKeyDetector = new EmojiAltPhysicalKeyDetector(
                     getApplicationContext().getResources());
         }
@@ -1987,7 +2030,9 @@ public class LatinIME extends InputMethodService implements KeyboardActionListen
         }
         return mRichImm.shouldOfferSwitchingToNextInputMethod(token, fallbackValue);
     }
-
+    public static void ChangeFocusState() {
+        mIsFocusInKeyboard = !mIsFocusInKeyboard;
+    }
     private void setNavigationBarVisibility(final boolean visible) {
         if (BuildCompatUtils.EFFECTIVE_SDK_INT > Build.VERSION_CODES.M) {
             // For N and later, IMEs can specify Color.TRANSPARENT to make the navigation bar
