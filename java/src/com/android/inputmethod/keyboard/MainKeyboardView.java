@@ -57,11 +57,15 @@ import com.android.inputmethod.latin.SuggestedWords;
 import com.android.inputmethod.latin.common.Constants;
 import com.android.inputmethod.latin.common.CoordinateUtils;
 import com.android.inputmethod.latin.settings.DebugSettings;
+import android.view.KeyEvent;
+import com.android.inputmethod.keyboard.Key;
+import java.util.List;
 import com.android.inputmethod.latin.utils.LanguageOnSpacebarUtils;
 import com.android.inputmethod.latin.utils.TypefaceUtils;
 
 import java.util.Locale;
 import java.util.WeakHashMap;
+import com.android.inputmethod.latin.LatinIME;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -112,7 +116,8 @@ import javax.annotation.Nullable;
 public final class MainKeyboardView extends KeyboardView implements DrawingProxy,
         MoreKeysPanel.Controller {
     private static final String TAG = MainKeyboardView.class.getSimpleName();
-
+    private final static boolean DEBUG = false;
+    private boolean controlByKey = false;
     /** Listener for {@link KeyboardActionListener}. */
     private KeyboardActionListener mKeyboardActionListener;
 
@@ -158,7 +163,8 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     // More keys panel (used by both more keys keyboard and more suggestions view)
     // TODO: Consider extending to support multiple more keys panels
     private MoreKeysPanel mMoreKeysPanel;
-
+    private Key lastFocusKey = null;
+    private int lastFocusIndex = -1;
     // Gesture floating preview text
     // TODO: Make this parameter customizable by user via settings.
     private int mGestureFloatingPreviewTextLingerTimeout;
@@ -170,6 +176,8 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     private final int mLanguageOnSpacebarHorizontalMargin;
 
     private MainKeyboardAccessibilityDelegate mAccessibilityDelegate;
+
+    public static boolean KeyEventProcessedFlag = false;
 
     public MainKeyboardView(final Context context, final AttributeSet attrs) {
         this(context, attrs, R.attr.mainKeyboardViewStyle);
@@ -695,6 +703,7 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
 
     @Override
     public boolean onTouchEvent(final MotionEvent event) {
+        setControlByKey(false);
         if (getKeyboard() == null) {
             return false;
         }
@@ -722,6 +731,213 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
         }
         tracker.processMotionEvent(event, mKeyDetector);
         return true;
+    }
+
+    public Key processFunctionKey(int keyCode) {
+        if (lastFocusKey == null || !isControlByKey()) {
+             goFirstKey();
+             return lastFocusKey;
+        }
+        switch (keyCode) {
+            case KeyEvent.KEYCODE_DPAD_CENTER:
+                break;
+            case KeyEvent.KEYCODE_DPAD_DOWN:
+                goKeyDown(lastFocusKey);
+                break;
+            case KeyEvent.KEYCODE_DPAD_RIGHT:
+                goKeyRight(lastFocusKey);
+                break;
+            case KeyEvent.KEYCODE_DPAD_LEFT:
+                goKeyLeft(lastFocusKey);
+                break;
+            case KeyEvent.KEYCODE_DPAD_UP:
+                goKeyUp(lastFocusKey);
+                break;
+            default:
+                break;
+        }
+        return lastFocusKey;
+    }
+
+    public boolean checkLastKey() {
+        final Keyboard kb = getKeyboard();
+        List<Key> sortedKeys = kb.getSortedKeys();
+        int sz = sortedKeys.size();
+        if (lastFocusIndex >= sz)
+            return false;
+        if (lastFocusIndex < 0)
+            return false;
+        Key k = sortedKeys.get(lastFocusIndex);
+        if (k != lastFocusKey && k != null)
+            return false;
+        return true;
+    }
+
+    private boolean checkFacing(Key src, Key dst) {
+        int mid = src.getX() + src.getWidth() / 2;
+        int leftX = src.getX();
+        int rightX = src.getX() + src.getWidth();
+        if ((leftX > dst.getX() && leftX < dst.getX() + dst.getWidth()) ||
+            (rightX > dst.getX() && rightX < dst.getX() + dst.getWidth()))
+                return true;
+        return false;
+    }
+
+    public Key goFirstKey() {
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, now enter goFirstKey()");
+        final Keyboard kb = getKeyboard();
+        List<Key> sortedKeys = kb.getSortedKeys();
+        Key ret = sortedKeys.get(0);
+        changeFocusState(lastFocusKey, ret);
+        lastFocusIndex = 0;
+        invalidateKey(ret);
+        this.requestFocus();
+        return ret;
+    }
+
+    private void changeFocusState(Key lastKey, Key curKey) {
+        if (lastFocusKey != null) {
+            lastKey.onUnFocus();
+            invalidateKey(lastKey);
+        }
+        if (curKey != null) {
+            curKey.onFocus();
+            invalidateKey(curKey);
+            lastFocusKey = curKey;
+            setControlByKey(true);
+        }
+    }
+
+    private Key goKeyDown(Key k) {
+        final Keyboard kb = getKeyboard();
+        Key ret = null;
+        int minDist = 0;
+        KeyEventProcessedFlag = true;
+        List<Key> sortedKeys = kb.getSortedKeys();
+        int sz = sortedKeys.size();
+        if (lastFocusIndex >= sz) {
+            lastFocusIndex = sz -1;
+        } else {
+            for (int i = lastFocusIndex + 1; i < sz; i++) {
+                Key tmp = sortedKeys.get(i);
+                if (k.getY() >= tmp.getY())
+                       continue;
+                if (checkFacing(k, tmp)) {
+                    ret =  tmp;
+                    lastFocusIndex = i;
+                    changeFocusState(lastFocusKey, ret);
+                    break;
+                }
+                if ((tmp.getX() + tmp.getWidth() / 2) >= (k.getX() + k.getWidth() / 2)) {
+                    ret = tmp;
+                    lastFocusIndex = i;
+                    changeFocusState(lastFocusKey, ret);
+                    break;
+                }
+           }
+        }
+        if (ret != null && DEBUG) {
+           Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
+        }
+        return ret;
+    }
+
+    private Key goKeyUp(Key k) {
+        final Keyboard kb = getKeyboard();
+        Key ret = null;
+        KeyEventProcessedFlag = false;
+        LatinIME.mIsFocusInKeyboard = false;
+        k.onUnFocus();
+        this.invalidateKey(k);
+        List<Key> sortedKeys = kb.getSortedKeys();
+        int sz = sortedKeys.size();
+        if (lastFocusIndex <= 0) {
+             lastFocusIndex = 0;
+        } else {
+            for (int i = lastFocusIndex - 1; i >= 0; i--) {
+                Key tmp = sortedKeys.get(i);
+                if (k.getY() <= tmp.getY())
+                    continue;
+                if (checkFacing(k, tmp)) {
+                    ret =  tmp;
+                    lastFocusIndex = i;
+                    changeFocusState(lastFocusKey, ret);
+                    KeyEventProcessedFlag = true;
+                    LatinIME.mIsFocusInKeyboard = true;
+                    break;
+                }
+                if ((tmp.getX() + tmp.getWidth() / 2) <= (k.getX() + k.getWidth() /2)) {
+                    ret = tmp;
+                    lastFocusIndex = i;
+                    changeFocusState(lastFocusKey, ret);
+                    KeyEventProcessedFlag = true;
+                    LatinIME.mIsFocusInKeyboard = true;
+                    break;
+                }
+            }
+        }
+        if (ret != null) {
+            if (DEBUG)
+                Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
+            return ret;
+        } else {
+            k.onFocus();
+            KeyEventProcessedFlag = true;
+            LatinIME.mIsFocusInKeyboard = true;
+            return k;
+        }
+    }
+
+    private Key goKeyLeft(Key k) {
+        if (lastFocusIndex == 0) {
+            return k;
+        }
+
+        final Keyboard kb = getKeyboard();
+        Key ret = null;
+        KeyEventProcessedFlag = false;
+        LatinIME.mIsFocusInKeyboard = false;
+        k.onUnFocus();
+        this.invalidateKey(k);
+        List<Key> sortedKeys = kb.getSortedKeys();
+        int sz = sortedKeys.size();
+        if (lastFocusIndex > 0 && lastFocusIndex < sz) {
+            lastFocusIndex--;
+            ret = sortedKeys.get(lastFocusIndex);
+            changeFocusState(lastFocusKey, ret);
+            KeyEventProcessedFlag = true;
+            LatinIME.mIsFocusInKeyboard = true;
+        }
+        if (ret != null && DEBUG) {
+            Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
+        }
+        return ret;
+    }
+
+    private Key goKeyRight(Key k) {
+        final Keyboard kb = getKeyboard();
+        Key ret = null;
+        List<Key> sortedKeys = kb.getSortedKeys();
+        KeyEventProcessedFlag = true;
+        int sz = sortedKeys.size();
+        if (lastFocusIndex >= 0 &&  lastFocusIndex < sz -1) {
+            lastFocusIndex++;
+            ret = sortedKeys.get(lastFocusIndex);
+            changeFocusState(lastFocusKey, ret);
+        }
+        if (ret != null && DEBUG) {
+            Log.d(TAG, "Trace_key, key down ret:" + ret.getCode() + " label:" + ret.getLabel() + " string:" + ret.toString());
+        }
+        return ret;
+    }
+
+    protected boolean isControlByKey() {
+        return controlByKey;
+    }
+
+    protected void setControlByKey(boolean b) {
+        controlByKey = b;
     }
 
     public void cancelAllOngoingEvents() {
@@ -891,5 +1107,9 @@ public final class MainKeyboardView extends KeyboardView implements DrawingProxy
     public void deallocateMemory() {
         super.deallocateMemory();
         mDrawingPreviewPlacerView.deallocateMemory();
+    }
+
+    public Key getLastFocusKey(){
+        return lastFocusKey;
     }
 }

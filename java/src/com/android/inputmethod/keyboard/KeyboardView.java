@@ -31,6 +31,7 @@ import android.graphics.drawable.NinePatchDrawable;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.view.View;
+import android.util.Log;
 
 import com.android.inputmethod.keyboard.internal.KeyDrawParams;
 import com.android.inputmethod.keyboard.internal.KeyVisualAttributes;
@@ -82,6 +83,8 @@ public class KeyboardView extends View {
     private final KeyVisualAttributes mKeyVisualAttributes;
     // Default keyLabelFlags from {@link KeyboardTheme}.
     // Currently only "alignHintLabelToBottom" is supported.
+    private final static String TAG = "KeyboardView";
+    private final static boolean DEBUG = false;
     private final int mDefaultKeyLabelFlags;
     private final float mKeyHintLetterPadding;
     private final String mKeyPopupHintLetter;
@@ -340,10 +343,52 @@ public class KeyboardView extends View {
             if (background != null) {
                 onDrawKeyBackground(key, canvas, background);
             }
+            if (isControlByKey()) {
+                final Drawable focusBackground = key.selectFocusDrawable(mKeyBackground, mFunctionalKeyBackground, mSpacebarBackground);
+                onDrawKeyFocus(key, canvas, focusBackground);
+            }
         }
         onDrawKeyTopVisuals(key, canvas, paint, params);
 
         canvas.translate(-keyDrawX, -keyDrawY);
+    }
+
+    private void onDrawKeyFocus(final Key key, final Canvas canvas,
+            final Drawable background) {
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, now onDrawKeyFocus, keyLabel:" + key.getLabel());
+        final int keyWidth = key.getDrawWidth();
+        final int keyHeight = key.getHeight();
+        final int bgWidth, bgHeight, bgX, bgY;
+        if (key.needsToKeepBackgroundAspectRatio(mDefaultKeyLabelFlags)
+                // HACK: To disable expanding normal/functional key background.
+                && !key.hasCustomActionLabel()) {
+            final int intrinsicWidth = background.getIntrinsicWidth();
+            final int intrinsicHeight = background.getIntrinsicHeight();
+            final float minScale = Math.min(
+                    keyWidth / (float)intrinsicWidth, keyHeight / (float)intrinsicHeight);
+            bgWidth = (int)(intrinsicWidth * minScale);
+            bgHeight = (int)(intrinsicHeight * minScale);
+            bgX = (keyWidth - bgWidth) / 2;
+            bgY = (keyHeight - bgHeight) / 2;
+        } else {
+            final Rect padding = mKeyBackgroundPadding;
+            bgWidth = keyWidth + padding.left + padding.right;
+            bgHeight = keyHeight + padding.top + padding.bottom;
+            bgX = -padding.left;
+            bgY = -padding.top;
+        }
+        final Rect bounds = background.getBounds();
+        if (bgWidth != bounds.right || bgHeight != bounds.bottom) {
+            background.setBounds(0, 0, bgWidth, bgHeight);
+        }
+        canvas.translate(bgX, bgY);
+        background.draw(canvas);
+        canvas.translate(-bgX, -bgY);
+    }
+
+    protected  boolean isControlByKey() {
+        return false;
     }
 
     // Draw key background.
