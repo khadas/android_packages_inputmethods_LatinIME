@@ -45,11 +45,15 @@ import com.android.inputmethod.latin.utils.LanguageOnSpacebarUtils;
 import com.android.inputmethod.latin.utils.RecapitalizeStatus;
 import com.android.inputmethod.latin.utils.ResourceUtils;
 import com.android.inputmethod.latin.utils.ScriptUtils;
+import android.view.KeyEvent;
+import com.android.inputmethod.keyboard.Key;
+import com.android.inputmethod.latin.common.Constants;
 
 import javax.annotation.Nonnull;
 
 public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     private static final String TAG = KeyboardSwitcher.class.getSimpleName();
+    private static final boolean DEBUG = false;
 
     private InputView mCurrentInputView;
     private View mMainKeyboardFrame;
@@ -289,6 +293,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         mMainKeyboardFrame.setVisibility(visibility);
         mEmojiPalettesView.setVisibility(View.GONE);
         mEmojiPalettesView.stopEmojiPalettes();
+        mEmojiPalettesView.clearFocus();
     }
 
     // Implements {@link KeyboardState.SwitchActions}.
@@ -299,6 +304,7 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
         }
         final Keyboard keyboard = mKeyboardLayoutSet.getKeyboard(KeyboardId.ELEMENT_ALPHABET);
         mMainKeyboardFrame.setVisibility(View.GONE);
+        mMainKeyboardFrame.clearFocus();
         // The visibility of {@link #mKeyboardView} must be aligned with {@link #MainKeyboardFrame}.
         // @see #getVisibleKeyboardView() and
         // @see LatinIME#onComputeInset(android.inputmethodservice.InputMethodService.Insets)
@@ -411,6 +417,61 @@ public final class KeyboardSwitcher implements KeyboardState.SwitchActions {
     public void onEvent(final Event event, final int currentAutoCapsState,
             final int currentRecapitalizeState) {
         mState.onEvent(event, currentAutoCapsState, currentRecapitalizeState);
+    }
+
+    public boolean processFunctionKey(int keyCode) {
+            boolean ret = false;
+        if (isShowingEmojiPalettes()) {
+            Key key = mEmojiPalettesView.processFunctionKey(keyCode);
+            if (key != null) {
+                responseForEmojboard(key);
+            }
+            return true;
+        } else {
+            final MainKeyboardView mainKeyboardView = getMainKeyboardView();
+            if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER) {
+                Key key = mainKeyboardView.processFunctionKey(keyCode);
+                if (key != null) {
+                    responseForMainboard(key);
+                    return true;
+                }
+            }
+            if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
+                keyCode == KeyEvent.KEYCODE_DPAD_RIGHT ||
+                keyCode == KeyEvent.KEYCODE_DPAD_UP ||
+                keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+                    mainKeyboardView.processFunctionKey(keyCode);
+                    return true;
+            }
+        }
+        return ret;
+    }
+
+
+    private void responseForMainboard(Key k) {
+        final MainKeyboardView mainKeyboardView = getMainKeyboardView();
+        int keyCode= k.getCode();
+        if (DEBUG)
+            Log.d(TAG, "Trace_key, response k.getCode:" + keyCode);
+        if (Constants.CODE_SHIFT == keyCode || //-1
+            Constants.CODE_SWITCH_ALPHA_SYMBOL == keyCode) {
+            this.onPressKey(keyCode, true, 0, -1);
+            this.onReleaseKey(keyCode, false, 0, -1);
+            mainKeyboardView.goFirstKey();
+            return;
+        } else if (Constants.CODE_OUTPUT_TEXT == keyCode) {
+            mLatinIME.onTextInput(k.getLabel());
+            return;
+        } else if (Constants.CODE_EMOJI == keyCode) {
+            return;
+        }
+        mLatinIME.doInputSoftKey(k);
+        if (!mainKeyboardView.checkLastKey())
+            mainKeyboardView.goFirstKey();
+    }
+
+
+    private void responseForEmojboard(Key k) {
     }
 
     public boolean isShowingKeyboardId(@Nonnull int... keyboardIds) {
